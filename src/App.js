@@ -1,28 +1,81 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Navbar, Container, Row, Col, Table } from 'react-bootstrap';
 import './App.css';
+import FacebookLogin from 'react-facebook-login';
+
 
 function App() {
   // initalize
   const [board, setBoard] = useState(new Array(9).fill(null));
   const [gameOver, setGameOver] = useState(false);
-  const [winner, setWinner] = useState(null);
-  // const [XO,setXO] = useState("")
-  console.log(gameOver)
+  const [winner, setWinner] = useState([]);
+  const [user, setUser] = useState(null);
+  const [isLogin, setIsLogin] = useState(false);
+  const [history, setHistory] = useState(null);
+
+  //Mouting
+  const responseFacebook = (res) => {
+    setUser(res);
+    if (res) { setIsLogin(true) };
+    console.log(res)
+  }
+
+  const postAPI = async () => {
+    if (user) {
+      let data = new URLSearchParams();
+      data.append('player', user.name);
+      data.append('score', 5e-324);
+      const url = `https://ftw-highscores.herokuapp.com/tictactoe-dev`;
+      const reponse = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: data.toString(),
+        json: true
+      });
+      console.log('result',reponse)
+    }
+  }
+  if(gameOver){postAPI()};
+
+  const getAPI = async()=>{
+    const url = `https://ftw-highscores.herokuapp.com/tictactoe-dev`;
+    const reponse = await fetch(url,{
+      method: 'GET',
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+    });
+    const data = await reponse.json();
+    setHistory(data.items);
+    console.log(data);
+  }
+  useEffect(()=>{
+    getAPI()
+  },[])
+
+  // console.log(gameOver)
+
   // render UI
   return (
     <div className="App">
       <Navbar bg="dark" variant="dark">
         <Navbar.Brand href="#home">
-          <img
-            alt=""
-            src="/logo.svg"
-            width="30"
-            height="30"
-            className="d-inline-block align-top"
-          />{' '}
-          React Bootstrap
+          {isLogin ?
+            <div className={'userInfo'}>
+              <img src={user && user.picture.data.url} alt={'avatar'}></img>
+              <p>Hi {user && user.name} !</p>
+            </div>
+            :
+            <FacebookLogin
+              // autoLoad={true}
+              appId="973463813031353"
+              fields="name,email,picture"
+              callback={(resp) => { responseFacebook(resp);}}
+            />
+          }
         </Navbar.Brand>
       </Navbar>
 
@@ -42,7 +95,9 @@ function App() {
           </Col>
           <Col>
             <div className={'historyArea'}>
-              <History />
+              <History
+                history={history}
+              />
             </div>
           </Col>
         </Row>
@@ -87,24 +142,28 @@ function Board(props) {
     for (let i = 0; i < possibleCaseWin.length; i++) {
       let [a, b, c] = possibleCaseWin[i];
       if (array[a] && array[a] === array[b] && array[b] === array[c]) {
-        props.setWinner(array[a]);
+        const currentWinner = props.winner.concat(array[a])
+        props.setWinner(currentWinner);
         props.setGameOver(true)
       }
     }
   }
 
   return (
-    <div className={'board'}>
-      {props.board.map((el, idx) =>
-        <Square
-          id={idx}
-          el={el}
-          idx={idx}
-          handleSquare={handleSquare}
+    <>
 
-        />
-      )}
-    </div>
+      <div className={'board'}>
+        {props.board.map((el, idx) =>
+          <Square
+            id={idx}
+            el={el}
+            idx={idx}
+            handleSquare={handleSquare}
+
+          />
+        )}
+      </div>
+    </>
   )
 }
 
@@ -119,36 +178,39 @@ function Square(props) {
   )
 }
 
+function TableRow(props) {
+  return (
+    <tr>
+      <td>{props.idx+1}</td>
+      <td>{props.history[props.idx].player}</td>
+      <td>{!props.history[props.idx].score ? Infinity : props.history[props.idx].score }</td>
+      <td>{props.history[props.idx].createdAt}</td>
+    </tr>
+  )
+}
+
 function History(props) {
   return (
     <Table striped bordered hover variant="dark">
       <thead>
         <tr>
           <th>#</th>
-          <th>First Name</th>
-          <th>Last Name</th>
-          <th>Username</th>
+          <th>User Name</th>
+          <th>Core</th>
+          <th>Time</th>
         </tr>
       </thead>
       <tbody>
-        <tr>
-          <td>1</td>
-          <td>Mark</td>
-          <td>Otto</td>
-          <td>@mdo</td>
-        </tr>
-        <tr>
-          <td>2</td>
-          <td>Jacob</td>
-          <td>Thornton</td>
-          <td>@fat</td>
-        </tr>
-        <tr>
-          <td>3</td>
-          <td colSpan="2">Larry the Bird</td>
-          <td>@twitter</td>
-        </tr>
+        {props.history && props.history.map((el,idx)=>{
+          return ( 
+          <TableRow
+            history={props.history}
+            idx={idx}
+          />)
+        })}
       </tbody>
     </Table>
   )
 }
+
+

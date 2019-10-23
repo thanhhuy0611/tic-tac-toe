@@ -60,3 +60,11 @@
 .historyArea{
   padding-top: 5%;
 }
+.userInfo{
+  display: flex;
+  align-items: center;
+}
+.userInfo > p {
+  margin: 0;
+  margin-left: 10px;
+}
